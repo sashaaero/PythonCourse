@@ -1,4 +1,4 @@
-class Ex_buro:
+class Ex_buro: 
     def __init__(self, name, ad):
         self.name = name
         self.ad = ad
@@ -6,7 +6,7 @@ class Ex_buro:
         self.guides = []
         self.excursions = []
 
-    def __str__(self):
+    def __str__(self): # privet
         return f'Бюро параходных экскурсий "{self.name}", наш адрес: "{self.ad}"'
 
     def add_ship(self, ship):
