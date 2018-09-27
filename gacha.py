@@ -4,13 +4,13 @@ from pony.orm import *
 from random import random
 import urllib
 import os
+from settings import SERVANTS_FOLDER
 
 FATE_MAIN_URL = 'http://fate-go.cirnopedia.org/servant_all.php'
 SERVANT_URL_FORMAT = 'http://fate-go.cirnopedia.org/servant_profile.php?servant=%s'
 SERVANT_IMAGE_FORMAT = 'http://fate-go.cirnopedia.org/icons/servant_card/%s4.jpg'
 SERVANT_RATING_FRAME_FORMAT = 'http://fate-go.cirnopedia.org/icons/frame/servant_card_0%s.png'
 
-SERVANTS_FOLDER = r'C:\Users\Alexander\Desktop\PythonDev\PythonCourse\PythonCourse\servants'
 
 db = Database('sqlite', ':memory:')
 
