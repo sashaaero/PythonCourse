@@ -4,7 +4,10 @@ from pony.orm import *
 from random import random
 import urllib
 import os
+from PIL import Image
+
 from settings import SERVANTS_FOLDER
+
 
 FATE_MAIN_URL = 'http://fate-go.cirnopedia.org/servant_all.php'
 SERVANT_URL_FORMAT = 'http://fate-go.cirnopedia.org/servant_profile.php?servant=%s'
@@ -78,14 +81,28 @@ def load_servants_images():
         if not os.path.exists(path):
             os.makedirs(path)
 
+        servant_art = os.path.join(path, 'art.png')
         servant_image = os.path.join(path, 'image.png')
         servant_frame = os.path.join(path, 'frame.png')
         servant_class = os.path.join(path, 'class.png')
 
-        urllib.request.urlretrieve(servant.image, servant_image)
+        urllib.request.urlretrieve(servant.image, servant_art)
         urllib.request.urlretrieve(servant.image_frame, servant_frame)
         urllib.request.urlretrieve(servant.class_image, servant_class)
 
+        img = Image.open(servant_art).convert("RGBA")
+        frame = Image.open(servant_frame).convert("RGBA")
+        out = Image.new('RGBA', (512, 874), color=255)
+        class_i = Image.open(servant_class).convert("RGBA")
+        x, y = out.size
+        out.paste(img, (0, 30), img)
+        out.paste(frame, (0, 0, x, y), frame)
+        out.paste(class_i, (217, 770), class_i)
+        out.save(servant_image, format="png")
+
+        os.remove(servant_art)
+        os.remove(servant_frame)
+        os.remove(servant_class)
 
 
 load_servants_images()
