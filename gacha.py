@@ -14,9 +14,13 @@ SERVANT_URL_FORMAT = 'http://fate-go.cirnopedia.org/servant_profile.php?servant=
 SERVANT_IMAGE_FORMAT = 'http://fate-go.cirnopedia.org/icons/servant_card/%s4.jpg'
 SERVANT_RATING_FRAME_FORMAT = 'http://fate-go.cirnopedia.org/icons/frame/servant_card_0%s.png'
 
+FATE_CE_URL = 'http://fate-go.cirnopedia.org/craft_essence.php'
+CE_URL_FORMAT = "http://fate-go.cirnopedia.org/craft_essence_profile.php?essence=%s"
+CE_IMAGE_FORMAT = "http://fate-go.cirnopedia.org/icons/essence/craft_essence_%s.jpg"
+CE_RATING_FRAME_FORMAT = "http://fate-go.cirnopedia.org/icons/frame/essence_card_0%d.png"
+
 
 db = Database('sqlite', ':memory:')
-
 
 class Servant(db.Entity):
     id = PrimaryKey(str)
@@ -39,6 +43,23 @@ class Servant(db.Entity):
     @property
     def class_image(self):
         return 'http://fate-go.cirnopedia.org/%s' % self.cls
+
+class CraftEssence(db.Entity):
+    id = PrimaryKey(str)
+    name = Required(str)
+    stars = Required(int)
+
+    @property
+    def url(self):
+        return CE_URL_FORMAT % self.id
+
+    @property
+    def image(self):
+        return CE_IMAGE_FORMAT % self.id
+
+    @property
+    def image_frame(self):
+        return CE_RATING_FRAME_FORMAT % self.id
 
 db.generate_mapping(create_tables=True)
 
@@ -67,8 +88,6 @@ def load_servants_list():
         class_image = class_image_str[:end_pos + len(end)]
         Servant(id=id, name=name, stars=stars, cls=class_image)
 
-
-load_servants_list()
 
 @db_session
 def load_servants_images():
@@ -105,7 +124,27 @@ def load_servants_images():
         os.remove(servant_class)
 
 
-load_servants_images()
+@db_session
+def load_ce_list():
+    response = requests.get(FATE_CE_URL)
+    if response.status_code != 200:
+        raise CirnopediaConnectionError
+
+    html = response.text
+    tree = BeautifulSoup(html, 'lxml')  # may require to `pip install lxml`
+    ce_data = tree.find_all('tbody')[1]
+    for x in ce_data.find_all('tr'):
+        stars = int(x.contents[3].contents[0][:1])
+        id = x.contents[1].contents[0]
+        name = x.contents[7].contents[0].attrs['title']
+        CraftEssence(id=id, name=name, stars=stars)
+
+# load_servants_images()
+# load_servants_list()
+load_ce_list()
+
+with db_session:
+    CraftEssence.select().show()
 
 # with db_session:
 #     for servant in Servant.select().order_by(lambda x: random()).limit(10):
