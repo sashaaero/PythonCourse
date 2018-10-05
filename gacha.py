@@ -141,13 +141,20 @@ def load_ce_list():
 
 # load_servants_images()
 # load_servants_list()
-load_ce_list()
-
-with db_session:
-    CraftEssence.select().show()
+# load_ce_list()
 
 # with db_session:
-#     for servant in Servant.select().order_by(lambda x: random()).limit(10):
-#         print(servant.name, servant.image, servant.class_image, servant.image_frame)
+#     CraftEssence.select().show()
+
+"""
+Домашнее задание
+1. Склеить картинки для эссенций
+2. Добавить к сущностям БД описания
+3. Добавить к сущностям флаги загруженности
+4. Добавить флаги возможности выдачи в story гаче (для слуг и СЕ)
+5. Убрать невозможных сервантов
+
+"""
+
 
 
