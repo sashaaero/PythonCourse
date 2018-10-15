@@ -1,12 +1,13 @@
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from pony.orm import *
 from random import random
 import urllib
 import os
 from PIL import Image
 
-from settings import SERVANTS_FOLDER
+
+from settings import SERVANTS_FOLDER, CE_FOLDER
 
 
 FATE_MAIN_URL = 'http://fate-go.cirnopedia.org/servant_all.php'
@@ -27,6 +28,7 @@ class Servant(db.Entity):
     name = Required(str)
     stars = Required(int)
     cls = Required(str)
+    description = Optional(str)
 
     @property
     def url(self):
@@ -59,7 +61,7 @@ class CraftEssence(db.Entity):
 
     @property
     def image_frame(self):
-        return CE_RATING_FRAME_FORMAT % self.id
+        return CE_RATING_FRAME_FORMAT % self.stars
 
 db.generate_mapping(create_tables=True)
 
@@ -72,6 +74,7 @@ def load_servants_list():
     if response.status_code != 200:
         raise CirnopediaConnectionError
 
+
     html = response.text
     tree = BeautifulSoup(html, 'lxml')  # may require to `pip install lxml`
     servants_data = tree.find('tbody')
@@ -80,13 +83,25 @@ def load_servants_list():
         id = x.attrs['id']
         stars = x.contents[2].contents[0][0]
         class_image_str = x.contents[3].contents[0].contents[1].attrs['style']
+        descr = ""
+        for obj in x.contents[14].contents:
+            if obj.name == 'br':
+                continue
+            elif isinstance(obj, Tag):
+                descr += obj.contents[0] + " "
+            elif isinstance(obj, str):
+                descr += obj + " "
         st = 'icons/class/'
         end = '.png'
         start_pos = class_image_str.find(st)
         class_image_str = class_image_str[start_pos:]
         end_pos = class_image_str.find(end)
         class_image = class_image_str[:end_pos + len(end)]
-        Servant(id=id, name=name, stars=stars, cls=class_image)
+        if descr != "\n":
+            Servant(id=id, name=name, stars=stars, cls=class_image, description=descr)
+        else:
+            Servant(id=id, name=name, stars=stars, cls=class_image)
+
 
 
 @db_session
@@ -97,31 +112,29 @@ def load_servants_images():
     urllib.request.install_opener(opener)
     for servant in Servant.select().limit(10, offset=3):
         path = os.path.join(SERVANTS_FOLDER, servant.id)
-        if not os.path.exists(path):
-            os.makedirs(path)
+        if not os.path.exists(path + "\Image.png"):
+            if not os.path.exists(path):
+                os.makedirs(path)
+            servant_art = os.path.join(path, 'art.png')
+            servant_image = os.path.join(path, 'Image.png')
+            servant_frame = os.path.join(path, 'frame.png')
+            servant_class = os.path.join(path, 'class.png')
+            urllib.request.urlretrieve(servant.image, servant_art)
+            urllib.request.urlretrieve(servant.image_frame, servant_frame)
+            urllib.request.urlretrieve(servant.class_image, servant_class)
 
-        servant_art = os.path.join(path, 'art.png')
-        servant_image = os.path.join(path, 'image.png')
-        servant_frame = os.path.join(path, 'frame.png')
-        servant_class = os.path.join(path, 'class.png')
-
-        urllib.request.urlretrieve(servant.image, servant_art)
-        urllib.request.urlretrieve(servant.image_frame, servant_frame)
-        urllib.request.urlretrieve(servant.class_image, servant_class)
-
-        img = Image.open(servant_art).convert("RGBA")
-        frame = Image.open(servant_frame).convert("RGBA")
-        out = Image.new('RGBA', (512, 874), color=255)
-        class_i = Image.open(servant_class).convert("RGBA")
-        x, y = out.size
-        out.paste(img, (0, 30), img)
-        out.paste(frame, (0, 0, x, y), frame)
-        out.paste(class_i, (217, 770), class_i)
-        out.save(servant_image, format="png")
-
-        os.remove(servant_art)
-        os.remove(servant_frame)
-        os.remove(servant_class)
+            img = Image.open(servant_art).convert("RGBA")
+            frame = Image.open(servant_frame).convert("RGBA")
+            out = Image.new('RGBA', (512, 874), color=255)
+            class_i = Image.open(servant_class).convert("RGBA")
+            x, y = out.size
+            out.paste(img, (0, 30), img)
+            out.paste(frame, (0, 0, x, y), frame)
+            out.paste(class_i, (217, 770), class_i)
+            out.save(servant_image, format="png")
+            os.remove(servant_art)
+            os.remove(servant_frame)
+            os.remove(servant_class)
 
 
 @db_session
@@ -135,22 +148,52 @@ def load_ce_list():
     ce_data = tree.find_all('tbody')[1]
     for x in ce_data.find_all('tr'):
         stars = int(x.contents[3].contents[0][:1])
-        id = x.contents[1].contents[0]
+        id = x.attrs['id']
         name = x.contents[7].contents[0].attrs['title']
         CraftEssence(id=id, name=name, stars=stars)
 
-# load_servants_images()
-# load_servants_list()
-# load_ce_list()
+
+@db_session
+def load_ce_images():
+    opener = urllib.request.build_opener()
+    opener.addheaders = [('User-Agent',
+                          'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/36.0.1941.0 Safari/537.36')]
+    urllib.request.install_opener(opener)
+    for ce in CraftEssence.select().limit(10):
+        path = os.path.join(CE_FOLDER, ce.id)
+        if not os.path.exists(path + "\СЕ.png"):
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+            ce_image = os.path.join(path, 'CЕ.png')
+            ce_frame = os.path.join(path, 'frame.png')
+
+            urllib.request.urlretrieve(ce.image, ce_image)
+            urllib.request.urlretrieve(ce.image_frame, ce_frame)
+
+            img = Image.open(ce_image).convert("RGBA")
+            frame = Image.open(ce_frame).convert("RGBA")
+            img.paste(frame, (0, 0), frame)
+            img.save(ce_image, format="png")
+
+            os.remove(ce_frame)
+
+load_servants_list()
+load_servants_images()
+
+load_ce_list()
+load_ce_images()
 
 # with db_session:
 #     CraftEssence.select().show()
 
+with db_session:
+    Servant.select().show(500)
 """
 Домашнее задание
-1. Склеить картинки для эссенций
-2. Добавить к сущностям БД описания
-3. Добавить к сущностям флаги загруженности
+1. Склеить картинки для эссенций X
+2. Добавить к сущностям БД описания X
+3. Добавить к сущностям флаги загруженности done
 4. Добавить флаги возможности выдачи в story гаче (для слуг и СЕ)
 5. Убрать невозможных сервантов
 
